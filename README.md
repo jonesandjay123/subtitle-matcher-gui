@@ -91,7 +91,10 @@ subtitle-matcher-gui/
 │   ├── config.py          # Configuration & API key handling
 │   └── formatter.py       # Text cleanup utilities
 ├── requirements.txt        # Python dependencies
+├── SubtitleMatcher.spec   # PyInstaller configuration
+├── build_app.sh           # One-click build script
 ├── README.md              # This file
+├── BUILD_GUIDE.md         # Detailed build/packaging guide
 └── LICENSE                # License information
 ```
 
@@ -127,16 +130,83 @@ response = client.models.generate_content(
 - **Manual Input Option**: Allows secure GUI-based key entry
 - **No Disk Storage**: API keys are never written to disk
 
-## 📦 Building Standalone Executable
+## 📦 打包成獨立應用程式
 
-To create a standalone executable (no Python required):
+> 💡 **完整打包指南**：查看 [BUILD_GUIDE.md](BUILD_GUIDE.md) 了解詳細的打包說明、故障排除和最佳實踐。
+
+### 方法一：使用一鍵打包腳本（最簡單）⭐
+
+本專案提供了自動化打包腳本，一行指令完成打包：
 
 ```bash
-pip install pyinstaller
-pyinstaller --onefile --windowed main.py
+./build_app.sh
 ```
 
-The executable will be in the `dist/` folder.
+### 方法二：使用現有的配置檔案
+
+本專案已包含 PyInstaller 配置檔案，可以直接打包：
+
+```bash
+# 1. 確保已安裝 PyInstaller
+pip install pyinstaller
+
+# 2. 清理之前的打包檔案（可選）
+rm -rf build dist
+
+# 3. 執行打包
+pyinstaller SubtitleMatcher.spec
+```
+
+打包完成後，你會在 `dist/` 資料夾找到：
+- **`SubtitleMatcher.app`** - macOS 應用程式包，可直接雙擊運行 ✨
+- **`SubtitleMatcher/`** - 資料夾版本，包含可執行檔
+
+### 方法三：自訂打包選項
+
+如果需要自訂打包選項，可以使用以下命令：
+
+```bash
+# macOS: 打包成 .app 應用程式
+pyinstaller --name SubtitleMatcher \
+            --windowed \
+            --onedir \
+            main.py
+
+# Windows: 打包成 .exe
+pyinstaller --name SubtitleMatcher \
+            --windowed \
+            --onefile \
+            main.py
+```
+
+### 打包參數說明
+
+- `--windowed` / `-w`: 不顯示終端視窗（GUI 應用程式）
+- `--onedir`: 打包成資料夾（包含依賴檔案）
+- `--onefile`: 打包成單一執行檔（較慢但方便分發）
+- `--name`: 指定應用程式名稱
+- `--icon`: 指定應用程式圖示（可選）
+
+### 使用打包後的應用程式
+
+#### macOS
+1. 打開 `dist/` 資料夾
+2. 雙擊 `SubtitleMatcher.app` 即可運行
+3. 如果遇到「無法打開，因為無法驗證開發者」錯誤：
+   - 右鍵點擊應用程式
+   - 選擇「打開」
+   - 再次點擊「打開」確認
+
+#### Windows
+1. 打開 `dist/` 資料夾
+2. 雙擊 `SubtitleMatcher.exe` 即可運行
+
+### 分發應用程式
+
+打包完成後，你可以：
+- 直接分享 `SubtitleMatcher.app`（macOS）或 `SubtitleMatcher.exe`（Windows）
+- 將 `dist/SubtitleMatcher/` 整個資料夾壓縮後分享
+- 使用者不需要安裝 Python 或任何依賴套件
 
 ## 🤝 Contributing
 

@@ -46,7 +46,8 @@ test_*.srt
 *.srt.bak
 
 # PyInstaller
-*.spec
+# Keep SubtitleMatcher.spec for build configuration
+# *.spec
 
 # Logs
 *.log
