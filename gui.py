@@ -185,7 +185,9 @@ class SubtitleMatcherGUI:
             height=8,
             font=("Courier", 9),
             state="disabled",
-            bg="#f5f5f5"
+            bg="#1e1e1e",
+            fg="#e0e0e0",
+            insertbackground="white"
         )
         self.log_text.grid(
             row=current_row, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10)
