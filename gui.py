@@ -21,7 +21,7 @@ class SubtitleMatcherGUI:
         """Initialize the GUI application."""
         self.root = tk.Tk()
         self.root.title("Gemini Subtitle Matcher")
-        self.root.geometry("900x700")
+        self.root.geometry("1000x850")
         self.root.resizable(True, True)
 
         # Configuration
@@ -111,13 +111,17 @@ class SubtitleMatcherGUI:
             main_frame,
             wrap=tk.WORD,
             width=80,
-            height=15,
+            height=10,
             font=("", 10)
         )
         self.transcript_text.grid(
             row=current_row, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10)
         )
         main_frame.rowconfigure(current_row, weight=1)
+
+        # Add right-click context menu for transcript text
+        self._create_context_menu(self.transcript_text)
+
         current_row += 1
 
         # === Output SRT File ===
@@ -165,6 +169,86 @@ class SubtitleMatcherGUI:
             foreground="blue"
         )
         status_label.grid(row=current_row, column=0, columnspan=3, sticky=tk.W)
+        current_row += 1
+
+        # === Log Display ===
+        ttk.Label(main_frame, text="Processing Log:", font=("", 10, "bold")).grid(
+            row=current_row, column=0, sticky=tk.W, pady=(10, 5)
+        )
+        current_row += 1
+
+        # Log text widget with scrollbar
+        self.log_text = scrolledtext.ScrolledText(
+            main_frame,
+            wrap=tk.WORD,
+            width=80,
+            height=8,
+            font=("Courier", 9),
+            state="disabled",
+            bg="#f5f5f5"
+        )
+        self.log_text.grid(
+            row=current_row, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10)
+        )
+        main_frame.rowconfigure(current_row, weight=1)
+
+    def _create_context_menu(self, text_widget):
+        """Create right-click context menu for text widget with copy/paste support."""
+        context_menu = tk.Menu(text_widget, tearoff=0)
+
+        context_menu.add_command(
+            label="Cut (⌘X)",
+            command=lambda: self._context_cut(text_widget)
+        )
+        context_menu.add_command(
+            label="Copy (⌘C)",
+            command=lambda: self._context_copy(text_widget)
+        )
+        context_menu.add_command(
+            label="Paste (⌘V)",
+            command=lambda: self._context_paste(text_widget)
+        )
+        context_menu.add_separator()
+        context_menu.add_command(
+            label="Select All (⌘A)",
+            command=lambda: self._context_select_all(text_widget)
+        )
+        context_menu.add_separator()
+        context_menu.add_command(
+            label="Clear",
+            command=lambda: text_widget.delete("1.0", tk.END)
+        )
+
+        # Bind right-click to show menu
+        text_widget.bind("<Button-2>", lambda e: context_menu.tk_popup(e.x_root, e.y_root))
+        text_widget.bind("<Button-3>", lambda e: context_menu.tk_popup(e.x_root, e.y_root))
+
+    def _context_cut(self, text_widget):
+        """Cut selected text to clipboard."""
+        try:
+            text_widget.event_generate("<<Cut>>")
+        except:
+            pass
+
+    def _context_copy(self, text_widget):
+        """Copy selected text to clipboard."""
+        try:
+            text_widget.event_generate("<<Copy>>")
+        except:
+            pass
+
+    def _context_paste(self, text_widget):
+        """Paste text from clipboard."""
+        try:
+            text_widget.event_generate("<<Paste>>")
+        except:
+            pass
+
+    def _context_select_all(self, text_widget):
+        """Select all text in widget."""
+        text_widget.tag_add(tk.SEL, "1.0", tk.END)
+        text_widget.mark_set(tk.INSERT, "1.0")
+        text_widget.see(tk.INSERT)
 
     def _toggle_api_key_visibility(self):
         """Toggle API key visibility between masked and visible."""
@@ -223,6 +307,22 @@ class SubtitleMatcherGUI:
 
         return True, None
 
+    def _log(self, message):
+        """Add a log message to the log display (thread-safe)."""
+        def append_log():
+            self.log_text.config(state="normal")
+            self.log_text.insert(tk.END, f"{message}\n")
+            self.log_text.see(tk.END)  # Auto-scroll to bottom
+            self.log_text.config(state="disabled")
+
+        self.root.after(0, append_log)
+
+    def _clear_log(self):
+        """Clear the log display."""
+        self.log_text.config(state="normal")
+        self.log_text.delete("1.0", tk.END)
+        self.log_text.config(state="disabled")
+
     def _run_matching(self):
         """Main function to run the subtitle matching process."""
         # Validate inputs
@@ -230,6 +330,12 @@ class SubtitleMatcherGUI:
         if not is_valid:
             messagebox.showerror("Input Error", error_msg)
             return
+
+        # Clear previous logs
+        self._clear_log()
+        self._log("=" * 60)
+        self._log("🚀 Starting subtitle matching process...")
+        self._log("=" * 60)
 
         # Disable button during processing
         self.run_button.config(state="disabled")
@@ -248,23 +354,35 @@ class SubtitleMatcherGUI:
         try:
             # Read input SRT file
             self._update_status("Reading original SRT file...")
+            self._log("\n📂 Reading input SRT file...")
             input_path = self.input_srt_path.get()
+            self._log(f"   Input: {input_path}")
             original_srt_content = read_srt_file(input_path)
+            self._log(f"   ✓ Loaded {len(original_srt_content)} characters")
 
             # Get corrected transcript
             corrected_transcript = self.transcript_text.get("1.0", tk.END).strip()
+            self._log(f"\n📝 Corrected transcript: {len(corrected_transcript)} characters")
 
             # Initialize Gemini client with API key
             self._update_status("Connecting to Gemini API...")
+            self._log("\n🔗 Initializing Gemini API client...")
             api_key = self.api_key.get().strip()
-            self.gemini_client = GeminiClient(api_key)
+            self.gemini_client = GeminiClient(api_key, log_callback=self._log)
+            self._log("   ✓ Client initialized successfully")
 
             # Call Gemini API to align subtitles
             self._update_status("Processing with Gemini 2.5 Flash...")
+            self._log("\n🤖 Calling Gemini 2.5 Flash API...")
+            self._log("   Model: gemini-2.5-flash")
+            self._log("   This may take 10-30 seconds depending on content length...")
+
             matched_srt = self.gemini_client.align_subtitles(
                 original_srt_content,
                 corrected_transcript
             )
+
+            self._log(f"   ✓ Received response: {len(matched_srt)} characters")
 
             # Determine output path
             output_path = self.output_srt_path.get()
@@ -274,10 +392,17 @@ class SubtitleMatcherGUI:
 
             # Write output SRT file
             self._update_status("Writing matched SRT file...")
+            self._log(f"\n💾 Writing output file...")
+            self._log(f"   Output: {output_path}")
             write_srt_file(output_path, matched_srt)
+            self._log("   ✓ File saved successfully")
 
             # Success!
             self._update_status("✅ Complete!")
+            self._log("\n" + "=" * 60)
+            self._log("✅ Subtitle matching completed successfully!")
+            self._log("=" * 60)
+
             self.root.after(0, lambda: messagebox.showinfo(
                 "Success",
                 f"Subtitle matching completed!\n\nOutput saved to:\n{output_path}"
@@ -285,7 +410,8 @@ class SubtitleMatcherGUI:
 
         except Exception as e:
             error_msg = f"Error during processing: {str(e)}"
-            print(error_msg)
+            self._log(f"\n❌ ERROR: {error_msg}")
+            self._log("=" * 60)
             self._update_status("❌ Error occurred")
             self.root.after(0, lambda: messagebox.showerror("Error", error_msg))
 
