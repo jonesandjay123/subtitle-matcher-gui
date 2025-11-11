@@ -65,6 +65,9 @@ class SubtitleMatcherGUI:
         self.api_key_entry = ttk.Entry(api_key_frame, textvariable=self.api_key, show="*", width=50)
         self.api_key_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
 
+        # Add right-click context menu for API key entry
+        self._create_context_menu_for_entry(self.api_key_entry)
+
         ttk.Button(api_key_frame, text="Show", command=self._toggle_api_key_visibility).grid(
             row=0, column=1
         )
@@ -194,6 +197,37 @@ class SubtitleMatcherGUI:
         )
         main_frame.rowconfigure(current_row, weight=1)
 
+    def _create_context_menu_for_entry(self, entry_widget):
+        """Create right-click context menu for Entry widget with copy/paste support."""
+        context_menu = tk.Menu(entry_widget, tearoff=0)
+
+        context_menu.add_command(
+            label="Cut (⌘X)",
+            command=lambda: self._context_cut(entry_widget)
+        )
+        context_menu.add_command(
+            label="Copy (⌘C)",
+            command=lambda: self._context_copy(entry_widget)
+        )
+        context_menu.add_command(
+            label="Paste (⌘V)",
+            command=lambda: self._context_paste(entry_widget)
+        )
+        context_menu.add_separator()
+        context_menu.add_command(
+            label="Select All (⌘A)",
+            command=lambda: self._context_select_all_entry(entry_widget)
+        )
+        context_menu.add_separator()
+        context_menu.add_command(
+            label="Clear",
+            command=lambda: entry_widget.delete(0, tk.END)
+        )
+
+        # Bind right-click to show menu
+        entry_widget.bind("<Button-2>", lambda e: context_menu.tk_popup(e.x_root, e.y_root))
+        entry_widget.bind("<Button-3>", lambda e: context_menu.tk_popup(e.x_root, e.y_root))
+
     def _create_context_menu(self, text_widget):
         """Create right-click context menu for text widget with copy/paste support."""
         context_menu = tk.Menu(text_widget, tearoff=0)
@@ -247,10 +281,15 @@ class SubtitleMatcherGUI:
             pass
 
     def _context_select_all(self, text_widget):
-        """Select all text in widget."""
+        """Select all text in Text widget."""
         text_widget.tag_add(tk.SEL, "1.0", tk.END)
         text_widget.mark_set(tk.INSERT, "1.0")
         text_widget.see(tk.INSERT)
+
+    def _context_select_all_entry(self, entry_widget):
+        """Select all text in Entry widget."""
+        entry_widget.select_range(0, tk.END)
+        entry_widget.icursor(tk.END)
 
     def _toggle_api_key_visibility(self):
         """Toggle API key visibility between masked and visible."""

@@ -72,43 +72,110 @@ class GeminiClient:
         # Build the prompt using our template
         self._log("📝 Building prompt template...")
         prompt = get_alignment_prompt(original_srt_content, corrected_transcript)
-        self._log(f"   Prompt size: {len(prompt)} chars")
+        prompt_length = len(prompt)
+        self._log(f"   Prompt size: {prompt_length} chars")
 
         try:
             import time
             start_time = time.time()
+            start_ms = int(start_time * 1000)
 
             self._log(f"🚀 Sending request to {self.model_name}...")
-            self._log("   ⏳ Waiting for API response (this may take 10-60s)...")
+            self._log(f"   Config: temp=0.2, top_p=0.9, max_tokens=8192")
+            self._log(f"   Input: {prompt_length} chars")
+            self._log("   ⏳ Waiting for API response (single-round call, 3-60s typical)...")
 
-            # Call Gemini API with optimized generation parameters
+            # Single-round API call with optimized generation parameters
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
                 config={
-                    'temperature': 0.2,  # Lower temperature for more consistent output
-                    'top_p': 0.9,
-                    'candidate_count': 1,
-                    'max_output_tokens': 8192  # Prevent truncation
+                    'temperature': 0.2,           # Low randomness for consistency
+                    'top_p': 0.9,                 # Nucleus sampling
+                    'candidate_count': 1,         # Single response
+                    'max_output_tokens': 8192,    # Prevent truncation
+                    'response_mime_type': 'text/plain'
                 }
             )
 
             # Extract the text response
-            result_text = response.text
-            elapsed_time = time.time() - start_time
+            end_time = time.time()
+            end_ms = int(end_time * 1000)
+            elapsed_ms = end_ms - start_ms
+            elapsed_sec = elapsed_ms / 1000.0
 
             self._log(f"   ✅ API call successful!")
-            self._log(f"   Response size: {len(result_text)} chars")
-            self._log(f"   Time elapsed: {elapsed_time:.2f} seconds")
+            self._log(f"   Time: {elapsed_ms}ms ({elapsed_sec:.2f}s)")
+            self._log(f"   Model: {self.model_name}")
+
+            # Try multiple ways to extract text
+            result_text = None
+
+            # Debug: Check response structure
+            self._log(f"   🔍 Response type: {type(response).__name__}")
+
+            # Method 1: Direct .text property
+            try:
+                if hasattr(response, 'text') and response.text is not None:
+                    result_text = response.text
+                    self._log(f"   ✓ Extracted via response.text")
+            except Exception as e:
+                self._log(f"   ⚠ Failed to access response.text: {e}")
+
+            # Method 2: From candidates
+            if not result_text:
+                try:
+                    if hasattr(response, 'candidates'):
+                        self._log(f"   🔍 Candidates: {response.candidates}")
+                        if response.candidates is not None and len(response.candidates) > 0:
+                            candidate = response.candidates[0]
+                            self._log(f"   🔍 First candidate type: {type(candidate).__name__}")
+
+                            if hasattr(candidate, 'content') and candidate.content:
+                                content = candidate.content
+                                self._log(f"   🔍 Content type: {type(content).__name__}")
+
+                                if hasattr(content, 'parts') and content.parts:
+                                    self._log(f"   🔍 Parts count: {len(content.parts)}")
+                                    if len(content.parts) > 0:
+                                        part = content.parts[0]
+                                        if hasattr(part, 'text') and part.text:
+                                            result_text = part.text
+                                            self._log(f"   ✓ Extracted via response.candidates[0].content.parts[0].text")
+                except Exception as e:
+                    self._log(f"   ⚠ Could not extract from candidates: {type(e).__name__}: {e}")
+
+            # Method 3: Try to get raw response
+            if not result_text:
+                try:
+                    # Some SDKs have a raw response or result property
+                    if hasattr(response, 'result'):
+                        result_text = str(response.result)
+                        self._log(f"   ✓ Extracted via response.result")
+                    elif hasattr(response, '__str__'):
+                        result_text = str(response)
+                        self._log(f"   ⚠ Using str(response) as fallback")
+                except Exception as e:
+                    self._log(f"   ⚠ Fallback extraction failed: {e}")
 
             # Basic validation
-            if not result_text or len(result_text) < 10:
-                raise ValueError("Gemini returned empty or invalid response")
+            if not result_text:
+                # Log full response structure for debugging
+                self._log(f"   ❌ Could not extract text from response")
+                self._log(f"   Response dir: {[x for x in dir(response) if not x.startswith('_')][:20]}")
+                raise ValueError("Gemini returned empty response - could not extract text from any method")
+
+            if len(result_text) < 10:
+                raise ValueError(f"Gemini returned suspiciously short response: {len(result_text)} chars")
+
+            self._log(f"   Response size: {len(result_text)} chars (raw)")
 
             # Clean up the response (remove markdown code blocks if present)
             self._log("🧹 Cleaning up response...")
+            self._log(f"   Raw size: {len(result_text)} chars")
             cleaned_result = self._clean_srt_response(result_text)
-            self._log(f"   Final SRT size: {len(cleaned_result)} chars")
+            self._log(f"   After cleanup: {len(cleaned_result)} chars")
+            self._log(f"   Reduction: {len(result_text) - len(cleaned_result)} chars removed")
 
             return cleaned_result
 
