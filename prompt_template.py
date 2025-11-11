@@ -16,27 +16,48 @@ def get_alignment_prompt(original_srt, corrected_transcript):
         str: Complete prompt for Gemini API
     """
     prompt = f"""你是一個字幕對齊與合併判斷助手。
-任務：將已校正好的繁體中文逐句文本（Corrected Lines）對齊到原始 SRT（Original SRT）的時間軸上，預設不合併，僅在嚴格條件都滿足時才合併時間範圍（文字不拼接超長）。嚴禁拆分任何一句 Corrected Line。
+任務：將已校正好的繁體中文逐句文本（Corrected Lines，以換行符分隔）對齊到原始 SRT（Original SRT）的時間軸上。
+
+🔴 核心鐵律（違反任何一條都是錯誤）：
+
+1. **一對一原則**：一個 Corrected Line = 一條最終字幕。絕對不可將兩個不同的 Corrected Lines 合併成一條字幕。
+
+2. **18 字硬限制**：每條最終字幕的中文漢字數必須 ≤ 18 字（英數字母和空格不計入）。
+
+3. **不拆分原則**：絕對不可拆分任何 Corrected Line。
+
+4. **時間範圍可合併，文字不可合併**：
+   - ✅ 允許：一個 Corrected Line 對應多個原始 SRT 片段的合併時間範圍
+   - ❌ 禁止：把多個 Corrected Lines 的文字拼接在一起
 
 決策原則（請嚴格遵守）
 
-預設不合併：每一個 Corrected Line 只對應一個或多個連續的 SRT 片段時間範圍，但文字只放該句本身，不把兩句文字串成一行。
+**預設操作**：
+- 每個 Corrected Line（以換行分隔）= 一條獨立的最終字幕
+- 預設使用一對一映射（L1 -> E1, L2 -> E2...）
+- 僅在找不到精確一對一映射時，才考慮時間範圍合併
 
-合併的必要條件（全部同時成立才可合併）：
+**時間範圍合併的條件**（全部同時成立才可合併）：
 
-1. 原始 SRT 相鄰片段在語意上屬於同一句話的連續部分（你可依上下文判斷是否為同一語義單位）。
+1. 該 Corrected Line 在原始 SRT 中對應多個連續片段（例如：原本被切碎的同一句話）
 
-2. 合併後要填入的 Corrected Line 的 CJK（中文）字數 ≤ 18（只計漢字，不把英數與空格納入 18 的限制）。
+2. 該 Corrected Line 的 CJK 字數 ≤ 18
 
-3. 合併的 SRT 片段時間連續（中間間隔 ≤ 500ms），且片段順序連續。
+3. 對應的 SRT 片段時間連續（間隔 ≤ 500ms）
 
-禁止事項：
+**時間範圍合併的操作**：
+- 合併時間：取第一個片段的開始時間 + 最後一個片段的結束時間
+- 文字內容：只放這一個 Corrected Line 的文字（不是把多個片段的原文拼起來）
 
-❌ 不得將兩個不同的 Corrected Lines 文字合併成同一條字幕。
+**絕對禁止的操作**：
 
-❌ 不得拆分任何 Corrected Line。
+❌ 將「Corrected Line 1」和「Corrected Line 2」的文字合併成一條字幕
 
-❌ 任何一條最終輸出字幕的中文漢字數不得超過 18（英數與空格不計入上限）。
+❌ 將任何 Corrected Line 拆成兩條或多條字幕
+
+❌ 輸出任何超過 18 個中文字的字幕（英數不計）
+
+❌ 忽略 Corrected Lines 的換行符（每個換行 = 一條獨立的句子）
 
 對齊次序：從左到右（時間順序）依序將 Corrected Lines 配對到 SRT。若 Corrected Lines 的句數 > SRT 片段數，停止並回報需要更粗顆粒的句子；若句數 < 片段數，才進行「時間範圍合併」（但仍只填入一個 Corrected Line 的文字）。
 

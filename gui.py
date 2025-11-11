@@ -109,6 +109,15 @@ class SubtitleMatcherGUI:
         )
         current_row += 1
 
+        # Format hint
+        ttk.Label(main_frame,
+                 text="⚠️ 重要：請每行輸入一句話（按 Enter 換行），每句 ≤ 18 個中文字",
+                 foreground="#FF6B35",
+                 font=("", 9)).grid(
+            row=current_row, column=0, columnspan=3, sticky=tk.W, pady=(0, 5)
+        )
+        current_row += 1
+
         # Scrolled text widget for transcript
         self.transcript_text = scrolledtext.ScrolledText(
             main_frame,
