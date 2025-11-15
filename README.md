@@ -5,6 +5,7 @@ A lightweight, open-source desktop application that aligns corrected transcripts
 ## 🎯 Purpose
 
 This tool rebuilds CapCut's missing "Match Subtitle" feature, allowing you to:
+
 - Import an original `.srt` subtitle file
 - Paste a corrected transcript (from Gemini or any AI model)
 - Automatically align the corrected text to original timestamps
@@ -23,23 +24,51 @@ This tool rebuilds CapCut's missing "Match Subtitle" feature, allowing you to:
 
 ### Prerequisites
 
-- Python 3.13 or higher
+- Python 3.11 or higher（建議使用 3.13+）
+  - **重要**：需要支援 Tkinter 的版本（Tcl/Tk 8.6+）
+  - macOS 使用者：建議從 [python.org](https://www.python.org/downloads/macos/) 下載官方安裝包，或使用 `brew install python@3.13`
 - Gemini API key ([Get one here](https://ai.google.dev/))
 
 ### Installation
 
 1. Clone or download this repository:
+
 ```bash
 git clone https://github.com/yourusername/subtitle-matcher-gui.git
 cd subtitle-matcher-gui
 ```
 
-2. Install dependencies:
+2. 建立虛擬環境（使用 Python 3.13）:
+
+```bash
+# macOS/Linux - 使用 Python 3.13
+python3.13 -m venv venv
+
+# 如果使用 Homebrew 安裝的 Python
+/opt/homebrew/bin/python3.13 -m venv venv
+
+# Windows
+python -m venv venv
+```
+
+3. 啟動虛擬環境:
+
+```bash
+# macOS/Linux
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+```
+
+4. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-3. (Optional) Set your API key as an environment variable:
+5. (Optional) Set your API key as an environment variable:
+
 ```bash
 # On macOS/Linux:
 export GEMINI_API_KEY="your-api-key-here"
@@ -50,25 +79,38 @@ set GEMINI_API_KEY=your-api-key-here
 
 ### Running the App
 
+方法 1 - 直接使用虛擬環境的 Python（推薦）:
+
 ```bash
+./venv/bin/python main.py
+```
+
+方法 2 - 啟動虛擬環境後運行:
+
+```bash
+source venv/bin/activate
 python main.py
 ```
 
 ## 📖 Usage Guide
 
 1. **Enter API Key**
+
    - If not set in environment, paste your Gemini API key at the top
    - Click "Show" to toggle visibility
 
 2. **Select Original SRT File**
+
    - Click "Browse..." to select your original subtitle file
    - The app will auto-suggest an output filename
 
 3. **Paste Corrected Transcript**
+
    - Copy your corrected transcript from Gemini or any source
    - Paste it into the large text box
 
 4. **Choose Output Location** (Optional)
+
    - Specify where to save the matched subtitle file
    - Leave empty to save in the same folder as input
 
@@ -158,6 +200,7 @@ pyinstaller SubtitleMatcher.spec
 ```
 
 打包完成後，你會在 `dist/` 資料夾找到：
+
 - **`SubtitleMatcher.app`** - macOS 應用程式包，可直接雙擊運行 ✨
 - **`SubtitleMatcher/`** - 資料夾版本，包含可執行檔
 
@@ -190,6 +233,7 @@ pyinstaller --name SubtitleMatcher \
 ### 使用打包後的應用程式
 
 #### macOS
+
 1. 打開 `dist/` 資料夾
 2. 雙擊 `SubtitleMatcher.app` 即可運行
 3. 如果遇到「無法打開，因為無法驗證開發者」錯誤：
@@ -198,12 +242,14 @@ pyinstaller --name SubtitleMatcher \
    - 再次點擊「打開」確認
 
 #### Windows
+
 1. 打開 `dist/` 資料夾
 2. 雙擊 `SubtitleMatcher.exe` 即可運行
 
 ### 分發應用程式
 
 打包完成後，你可以：
+
 - 直接分享 `SubtitleMatcher.app`（macOS）或 `SubtitleMatcher.exe`（Windows）
 - 將 `dist/SubtitleMatcher/` 整個資料夾壓縮後分享
 - 使用者不需要安裝 Python 或任何依賴套件
@@ -224,23 +270,94 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🐛 Troubleshooting
 
+### 驗證安裝是否成功
+
+安裝完成後，可以執行以下指令確認環境設置正確：
+
+```bash
+# 檢查 Python 版本（應為 3.11+，推薦 3.13+）
+./venv/bin/python --version
+
+# 檢查 Tkinter 版本（應為 8.6+，推薦 9.0+）
+./venv/bin/python -c "import tkinter; print('Tkinter:', tkinter.TkVersion)"
+
+# 檢查依賴套件
+./venv/bin/python -c "from google import genai; print('✓ google-genai 已安裝')"
+```
+
+預期輸出範例：
+
+```
+Python 3.13.9
+Tkinter: 9.0
+✓ google-genai 已安裝
+```
+
 ### "API key not found" error
+
 - Make sure you've set the `GEMINI_API_KEY` environment variable OR entered it in the GUI
 
 ### "Module not found" error
+
 - Run `pip install -r requirements.txt` to install dependencies
+- 確保你在虛擬環境中運行：`source venv/bin/activate`
+
+### macOS: "macOS 26 (2601) or later required" 或應用程式直接閃退
+
+**問題原因**：舊版 Python（如 3.9.6）使用的 Tcl/Tk 8.5 版本過舊，在新版 macOS 上會出現版本檢查錯誤。
+
+**解決方案**：升級到 Python 3.13+（包含 Tcl/Tk 9.0）
+
+1. **安裝 Python 3.13+**:
+
+```bash
+# 方法 1: 使用 Homebrew（推薦）
+brew install python@3.13
+
+# 方法 2: 從 python.org 下載官方安裝包
+# https://www.python.org/downloads/macos/
+```
+
+2. **重建虛擬環境**:
+
+```bash
+cd subtitle-matcher-gui
+rm -rf venv
+python3.13 -m venv venv  # 或 /opt/homebrew/bin/python3.13
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+3. **驗證 Tkinter 版本**:
+
+```bash
+./venv/bin/python -c "import tkinter; print('Tkinter:', tkinter.TkVersion)"
+# 應該顯示 8.6 或更高（推薦 9.0+）
+```
+
+4. **測試啟動**:
+
+```bash
+./venv/bin/python main.py
+```
+
+如果 GUI 視窗成功出現，問題已解決！✅
 
 ### GUI doesn't appear on macOS
-- Make sure you're using Python 3.13+ with proper Tkinter support
-- Try running with `python3 main.py` instead of `python main.py`
+
+- Make sure you're using Python 3.11+ with proper Tkinter support (Tcl/Tk 8.6+)
+- 檢查 Python 版本：`python --version`（應為 3.11+）
+- Try running with `python3.13 main.py` instead of `python main.py`
 
 ### Subtitle alignment is inaccurate
+
 - Ensure your corrected transcript closely matches the content of the original subtitles
 - Try breaking very long transcripts into shorter segments
 
 ## 📧 Support
 
 For issues, questions, or suggestions:
+
 - Open an issue on GitHub
 - Check existing issues for solutions
 
